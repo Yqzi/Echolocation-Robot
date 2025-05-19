@@ -1,36 +1,53 @@
-//www.elegoo.com
-//2018.10.25
-
-/*
-  Stepper Motor Control - one revolution
-
-  This program drives a unipolar or bipolar stepper motor.
-  The motor is attached to digital pins 8 - 11 of the Arduino.
-
-  The motor should revolve one revolution in one direction, then
-  one revolution in the other direction.
-
-*/
-
 #include <Arduino.h>
 #include <Stepper.h>
 
-const int stepsPerRevolution = 2048;  // change this to fit the number of steps per revolution
-const int rolePerMinute = 17;         // Adjustable range of 28BYJ-48 stepper is 0~17 rpm
+int pin = 7;
+int pin2 = 8;
 
-// initialize the stepper library on pins 8 through 11:
-Stepper myStepper(stepsPerRevolution, 8, 10, 9, 11);
+unsigned long lastMic1 = 0;
+unsigned long lastMic2 = 0;
 
 void setup() {
-  myStepper.setSpeed(rolePerMinute);
-  // initialize the serial port:
-  Serial.begin(9600);
+  pinMode(pin, INPUT);
+  pinMode(pin2, INPUT);
+  Serial.begin(9600);   
 }
 
 void loop() {
-  Serial.println("Start The Motors!");
-  myStepper.step(stepsPerRevolution);
-  delay(500);
-  myStepper.step(-stepsPerRevolution);
-  delay(500);
+  bool mic1 = digitalRead(pin) == HIGH;
+  bool mic2 = digitalRead(pin2) == HIGH;
+
+  unsigned long now = micros();
+
+  if (mic1 && lastMic1 == 0) {
+    lastMic1 = now;
+  }
+  if (mic2 && lastMic2 == 0) {
+    lastMic2 = now;
+  }
+
+  // When both have detected, compare times
+  if (lastMic1 > 0 && lastMic2 > 0) {
+    if (lastMic1 < lastMic2) {
+      Serial.print("Mic 1 (Pin 7) detected first at ");
+      Serial.print(lastMic1);
+      Serial.println(" ms");
+    } else if (lastMic2 < lastMic1) {
+      Serial.print("Mic 2 (Pin 8) detected first at ");
+      Serial.print(lastMic2);
+      Serial.println(" ms");
+    } else {
+      Serial.print("Both mics detected at the same time: ");
+      Serial.print(lastMic1);
+      Serial.println(" ms");
+    }
+    // Reset for next detection
+    lastMic1 = 0;
+    lastMic2 = 0;
+    delay(500); // Debounce
+  }
+
+  // Reset if neither is HIGH
+  if (!mic1) lastMic1 = 0;
+  if (!mic2) lastMic2 = 0;
 }
