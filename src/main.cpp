@@ -1,53 +1,42 @@
 #include <Arduino.h>
 #include <Stepper.h>
 
-int pin = 7;
-int pin2 = 8;
+volatile unsigned long timeMic1 = 0;
+volatile unsigned long timeMic2 = 0;
 
-unsigned long lastMic1 = 0;
-unsigned long lastMic2 = 0;
+void mic1ISR() {
+  if (timeMic1 == 0) timeMic1 = micros();
+}
+
+void mic2ISR() {
+  if (timeMic2 == 0) timeMic2 = micros();
+}
 
 void setup() {
-  pinMode(pin, INPUT);
-  pinMode(pin2, INPUT);
-  Serial.begin(9600);   
+  Serial.begin(9600);
+
+  pinMode(2, INPUT); // Mic 1 digital output
+  pinMode(3, INPUT); // Mic 2 digital output
+
+  attachInterrupt(digitalPinToInterrupt(2), mic1ISR, RISING);
+  attachInterrupt(digitalPinToInterrupt(3), mic2ISR, RISING);
+
+  Serial.println("Listening...");
 }
 
 void loop() {
-  bool mic1 = digitalRead(pin) == HIGH;
-  bool mic2 = digitalRead(pin2) == HIGH;
-
-  unsigned long now = micros();
-
-  if (mic1 && lastMic1 == 0) {
-    lastMic1 = now;
-  }
-  if (mic2 && lastMic2 == 0) {
-    lastMic2 = now;
-  }
-
-  // When both have detected, compare times
-  if (lastMic1 > 0 && lastMic2 > 0) {
-    if (lastMic1 < lastMic2) {
-      Serial.print("Mic 1 (Pin 7) detected first at ");
-      Serial.print(lastMic1);
-      Serial.println(" ms");
-    } else if (lastMic2 < lastMic1) {
-      Serial.print("Mic 2 (Pin 8) detected first at ");
-      Serial.print(lastMic2);
-      Serial.println(" ms");
+  if (timeMic1 > 0 && timeMic2 > 0) {
+    if (timeMic1 < timeMic2) {
+      Serial.println("Mic 2 heard sound first");
+    } else if (timeMic2 < timeMic1) {
+      Serial.println("Mic 3 heard sound first");
     } else {
-      Serial.print("Both mics detected at the same time: ");
-      Serial.print(lastMic1);
-      Serial.println(" ms");
+      Serial.println("Both heard at the same time");
     }
-    // Reset for next detection
-    lastMic1 = 0;
-    lastMic2 = 0;
-    delay(500); // Debounce
-  }
 
-  // Reset if neither is HIGH
-  if (!mic1) lastMic1 = 0;
-  if (!mic2) lastMic2 = 0;
+    // Reset for next detection
+    timeMic1 = 0;
+    timeMic2 = 0;
+    delay(1000); // debounce between trials
+  }
 }
